@@ -65,13 +65,29 @@ Send a POST request to your webhook endpoint with the following JSON structure:
 
 ```json
 {
-    "ErrorCode": 500,
-    "ErrorMessage": "Internal Server Error",
-    "Timestamp": "2024-01-30T20:00:00",
-    "ConnectionType": "REST",
-    "ConnectionName": "UserService"
+    "errorCode": 404,
+    "errorMessage": "Request failed with status code 404",
+    "timestamp": "2024-01-30T19:42:10.939Z",
+    "connectionType": "chat",
+    "connectionName": "chat_09c5aff3-b653-4301-9780-fdb3dbfbdb42",
+    "additionalInfo": {
+        "timestamp": "2024-01-30T19:42:10.939Z",
+        "type": "typing_indicator",
+        "consumer_id": "52a390ee-e7a7-42c9-b725-b62b70c8ac2f",
+        "account_id": "chat_09c5aff3-b653-4301-9780-fdb3dbfbdb42",
+        "customer_id": "65e903e8f4d840cc90958e50fe1638be"
+    }
 }
 ```
+
+The dashboard will:
+- Display the error in the data table
+- Show additional info in an expandable row
+- Update error statistics and charts
+- Color-code the severity based on the error code:
+  - 500+: Critical (Red)
+  - 400-499: Warning (Yellow)
+  - Others: Info (Blue)
 
 ## License
 

@@ -33,11 +33,12 @@ def webhook_endpoint():
         
         # Validate required fields
         required_fields = {
-            'ErrorCode': int,
-            'ErrorMessage': str,
-            'Timestamp': str,
-            'ConnectionType': str,
-            'ConnectionName': str
+            'errorCode': int,
+            'errorMessage': str,
+            'timestamp': str,
+            'connectionType': str,
+            'connectionName': str,
+            'additionalInfo': dict
         }
         
         for field, field_type in required_fields.items():
@@ -46,11 +47,26 @@ def webhook_endpoint():
             if not isinstance(data[field], field_type):
                 return jsonify({"status": "error", "message": f"Invalid type for field {field}"}), 400
 
-        # Add received timestamp and process the original timestamp
+        # Validate additionalInfo structure
+        required_additional_info = {
+            'timestamp': str,
+            'type': str,
+            'consumer_id': str,
+            'account_id': str,
+            'customer_id': str
+        }
+
+        for field, field_type in required_additional_info.items():
+            if field not in data['additionalInfo']:
+                return jsonify({"status": "error", "message": f"Missing field in additionalInfo: {field}"}), 400
+            if not isinstance(data['additionalInfo'][field], field_type):
+                return jsonify({"status": "error", "message": f"Invalid type for additionalInfo.{field}"}), 400
+
+        # Add received timestamp
         data['received_at'] = datetime.utcnow().isoformat()
         
         # Add severity based on error code
-        error_code = int(data['ErrorCode'])
+        error_code = int(data['errorCode'])
         if error_code >= 500:
             data['severity'] = 'critical'
         elif error_code >= 400:
@@ -60,10 +76,10 @@ def webhook_endpoint():
 
         # Update statistics
         error_stats['error_codes'][str(error_code)] += 1
-        error_stats['connection_types'][data['ConnectionType']] += 1
+        error_stats['connection_types'][data['connectionType']] += 1
         
-        # Update hourly stats
-        hour = datetime.fromisoformat(data['Timestamp']).strftime('%Y-%m-%d %H:00')
+        # Update hourly stats using the incoming timestamp
+        hour = datetime.fromisoformat(data['timestamp'].replace('Z', '+00:00')).strftime('%Y-%m-%d %H:00')
         error_stats['hourly_errors'][hour] += 1
 
         webhook_logs.insert(0, data)

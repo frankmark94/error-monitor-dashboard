@@ -38,24 +38,39 @@ function initializeDataTable() {
         order: [[0, 'desc']], // Sort by timestamp descending
         pageLength: 10,
         columns: [
-            { data: 'Timestamp' },
-            { data: 'severity' },
-            { data: 'ErrorCode' },
-            { data: 'ConnectionType' },
-            { data: 'ErrorMessage' }
-        ],
-        columnDefs: [
-            {
-                targets: 0,
+            { 
+                data: 'timestamp',
                 render: function(data) {
                     return formatTimestamp(data);
                 }
             },
-            {
-                targets: 1,
+            { 
+                data: 'severity',
                 render: function(data) {
                     return `<span class="severity-${data.toLowerCase()}">${data}</span>`;
                 }
+            },
+            { data: 'errorCode' },
+            { data: 'connectionType' },
+            { data: 'errorMessage' },
+            { 
+                data: 'additionalInfo',
+                render: function(data) {
+                    return `
+                        <div class="additional-info">
+                            <div><strong>Type:</strong> ${data.type}</div>
+                            <div><strong>Consumer ID:</strong> ${data.consumer_id}</div>
+                            <div><strong>Account ID:</strong> ${data.account_id}</div>
+                            <div><strong>Customer ID:</strong> ${data.customer_id}</div>
+                        </div>
+                    `;
+                }
+            }
+        ],
+        columnDefs: [
+            {
+                targets: 5,
+                className: 'none' // This column will be hidden by default but expandable
             }
         ]
     });
