@@ -1,4 +1,11 @@
 services:
+  # Redis service must be defined first
+  - type: redis
+    name: error-monitor-redis
+    ipAllowList: []
+    maxmemoryPolicy: noeviction
+    plan: free
+
   - type: web
     name: error-monitor-dashboard
     runtime: python
@@ -22,9 +29,5 @@ services:
           property: connectionString
     healthCheckPath: /
     autoDeploy: true
-
-  - type: redis
-    name: error-monitor-redis
-    ipAllowList: []
-    maxmemoryPolicy: noeviction
-    plan: free 
+    dependencies:
+      - error-monitor-redis 
