@@ -4,17 +4,47 @@ import json
 from collections import defaultdict
 import os
 from config import config
+import redis
+from json import dumps, loads
 
 app = Flask(__name__, static_url_path='/static')
 app.config.from_object(config)
 
-# Store webhooks in memory (in production, you'd want to use a database)
-webhook_logs = []
-error_stats = {
-    'error_codes': defaultdict(int),
-    'connection_types': defaultdict(int),
-    'hourly_errors': defaultdict(int)
-}
+# Initialize Redis connection
+redis_client = redis.from_url(config.REDIS_URL)
+
+def get_stats():
+    """Get statistics from Redis"""
+    error_codes = loads(redis_client.get(config.REDIS_ERROR_CODES_KEY) or '{}')
+    connection_types = loads(redis_client.get(config.REDIS_CONNECTION_TYPES_KEY) or '{}')
+    hourly_errors = loads(redis_client.get(config.REDIS_HOURLY_ERRORS_KEY) or '{}')
+    
+    return {
+        'error_codes': error_codes,
+        'connection_types': connection_types,
+        'hourly_errors': hourly_errors
+    }
+
+def update_stats(data, error_code):
+    """Update statistics in Redis"""
+    # Get current stats
+    stats = get_stats()
+    
+    # Update error codes
+    error_codes = stats['error_codes']
+    error_codes[str(error_code)] = error_codes.get(str(error_code), 0) + 1
+    redis_client.set(config.REDIS_ERROR_CODES_KEY, dumps(error_codes))
+    
+    # Update connection types
+    connection_types = stats['connection_types']
+    connection_types[data['connectionType']] = connection_types.get(data['connectionType'], 0) + 1
+    redis_client.set(config.REDIS_CONNECTION_TYPES_KEY, dumps(connection_types))
+    
+    # Update hourly errors
+    hour = datetime.fromisoformat(data['timestamp'].replace('Z', '+00:00')).strftime('%Y-%m-%d %H:00')
+    hourly_errors = stats['hourly_errors']
+    hourly_errors[hour] = hourly_errors.get(hour, 0) + 1
+    redis_client.set(config.REDIS_HOURLY_ERRORS_KEY, dumps(hourly_errors))
 
 @app.route('/')
 def home():
@@ -75,28 +105,28 @@ def webhook_endpoint():
             data['severity'] = 'info'
 
         # Update statistics
-        error_stats['error_codes'][str(error_code)] += 1
-        error_stats['connection_types'][data['connectionType']] += 1
+        update_stats(data, error_code)
         
-        # Update hourly stats using the incoming timestamp
-        hour = datetime.fromisoformat(data['timestamp'].replace('Z', '+00:00')).strftime('%Y-%m-%d %H:00')
-        error_stats['hourly_errors'][hour] += 1
-
-        webhook_logs.insert(0, data)
-        if len(webhook_logs) > config.MAX_LOGS:
-            webhook_logs.pop()
+        # Store log in Redis
+        logs = loads(redis_client.get(config.REDIS_LOGS_KEY) or '[]')
+        logs.insert(0, data)
+        if len(logs) > config.MAX_LOGS:
+            logs.pop()
+        redis_client.set(config.REDIS_LOGS_KEY, dumps(logs))
             
         return jsonify({"status": "success"}), 200
     except Exception as e:
+        app.logger.error(f"Error processing webhook: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 400
 
 @app.route('/logs')
 def get_logs():
-    return jsonify(webhook_logs)
+    logs = loads(redis_client.get(config.REDIS_LOGS_KEY) or '[]')
+    return jsonify(logs)
 
 @app.route('/stats')
-def get_stats():
-    return jsonify(error_stats)
+def get_stats_endpoint():
+    return jsonify(get_stats())
 
 @app.route('/config')
 def get_config():

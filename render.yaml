@@ -15,5 +15,15 @@ services:
         value: /endpoint
       - key: MAX_LOGS
         value: 100
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: error-monitor-redis
+          property: connectionString
     healthCheckPath: /
     autoDeploy: true 
+
+  - type: redis
+    name: error-monitor-redis
+    ipAllowList: [] # only allow internal connections
+    plan: free # optional (defaults to starter) 
