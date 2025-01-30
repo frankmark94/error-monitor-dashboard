@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Messaging Error Monitor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.2.9/css/responsive.dataTables.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Digital Messaging Error Monitor</h1>
+        
+        <div class="webhook-url">
+            <h2>Webhook URL:</h2>
+            <p id="webhook-url"></p>
+            <button onclick="copyWebhookUrl()">Copy URL</button>
+        </div>
+
+        <div class="stats-container">
+            <div class="stat-box">
+                <h3>Total Errors</h3>
+                <p id="total-errors">0</p>
+            </div>
+            <div class="stat-box">
+                <h3>Critical Errors</h3>
+                <p id="critical-errors">0</p>
+            </div>
+            <div class="stat-box">
+                <h3>Warning Errors</h3>
+                <p id="warning-errors">0</p>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="table-section">
+                <h2>Error Log Table</h2>
+                <div class="table-controls">
+                    <select id="severityFilter">
+                        <option value="all">All Severities</option>
+                        <option value="critical">Critical Only</option>
+                        <option value="warning">Warnings Only</option>
+                        <option value="info">Info Only</option>
+                    </select>
+                    <button onclick="clearLogs()">Clear Logs</button>
+                </div>
+                <table id="errorTable" class="display responsive nowrap" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Severity</th>
+                            <th>Error Code</th>
+                            <th>Connection Type</th>
+                            <th>Message</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="visualization-section">
+                <div class="chart-grid">
+                    <div class="chart-box">
+                        <h3>Error Distribution</h3>
+                        <canvas id="errorCodesChart"></canvas>
+                    </div>
+                    <div class="chart-box">
+                        <h3>Connection Types</h3>
+                        <canvas id="connectionTypesChart"></canvas>
+                    </div>
+                    <div class="chart-box full-width">
+                        <h3>Errors Timeline</h3>
+                        <canvas id="timelineChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html> 
