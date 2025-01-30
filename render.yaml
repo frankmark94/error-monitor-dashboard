@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: error-monitor-dashboard
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.0
+      - key: FLASK_DEBUG
+        value: false
+      - key: SECRET_KEY
+        sync: false # Will be set manually in Render dashboard
+      - key: ENDPOINT_PATH
+        value: /endpoint
+      - key: MAX_LOGS
+        value: 100
+    healthCheckPath: /
+    autoDeploy: true 
