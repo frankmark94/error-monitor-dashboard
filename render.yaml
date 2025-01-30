@@ -1,29 +1,30 @@
 services:
   - type: web
     name: error-monitor-dashboard
-    env: python
+    runtime: python
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
-        value: 3.9.0
+        value: "3.9.0"
       - key: FLASK_DEBUG
-        value: false
+        value: "false"
       - key: SECRET_KEY
-        sync: false # Will be set manually in Render dashboard
+        sync: false
       - key: ENDPOINT_PATH
-        value: /endpoint
+        value: "/endpoint"
       - key: MAX_LOGS
-        value: 100
+        value: "100"
       - key: REDIS_URL
         fromService:
-          type: redis
           name: error-monitor-redis
+          type: redis
           property: connectionString
     healthCheckPath: /
-    autoDeploy: true 
+    autoDeploy: true
 
   - type: redis
     name: error-monitor-redis
-    ipAllowList: [] # only allow internal connections
-    plan: free # optional (defaults to starter) 
+    ipAllowList: []
+    maxmemoryPolicy: noeviction
+    plan: free 

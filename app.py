@@ -6,45 +6,70 @@ import os
 from config import config
 import redis
 from json import dumps, loads
+import logging
 
 app = Flask(__name__, static_url_path='/static')
 app.config.from_object(config)
 
-# Initialize Redis connection
-redis_client = redis.from_url(config.REDIS_URL)
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Initialize Redis connection with retry
+def get_redis_client():
+    try:
+        client = redis.from_url(config.REDIS_URL, decode_responses=True)
+        # Test the connection
+        client.ping()
+        logger.info(f"Successfully connected to Redis at {config.REDIS_URL}")
+        return client
+    except redis.ConnectionError as e:
+        logger.error(f"Failed to connect to Redis: {str(e)}")
+        logger.error(f"Redis URL: {config.REDIS_URL}")
+        raise
+
+redis_client = get_redis_client()
 
 def get_stats():
     """Get statistics from Redis"""
-    error_codes = loads(redis_client.get(config.REDIS_ERROR_CODES_KEY) or '{}')
-    connection_types = loads(redis_client.get(config.REDIS_CONNECTION_TYPES_KEY) or '{}')
-    hourly_errors = loads(redis_client.get(config.REDIS_HOURLY_ERRORS_KEY) or '{}')
-    
-    return {
-        'error_codes': error_codes,
-        'connection_types': connection_types,
-        'hourly_errors': hourly_errors
-    }
+    try:
+        error_codes = loads(redis_client.get(config.REDIS_ERROR_CODES_KEY) or '{}')
+        connection_types = loads(redis_client.get(config.REDIS_CONNECTION_TYPES_KEY) or '{}')
+        hourly_errors = loads(redis_client.get(config.REDIS_HOURLY_ERRORS_KEY) or '{}')
+        
+        return {
+            'error_codes': error_codes,
+            'connection_types': connection_types,
+            'hourly_errors': hourly_errors
+        }
+    except redis.RedisError as e:
+        logger.error(f"Redis error in get_stats: {str(e)}")
+        return {'error_codes': {}, 'connection_types': {}, 'hourly_errors': {}}
 
 def update_stats(data, error_code):
     """Update statistics in Redis"""
-    # Get current stats
-    stats = get_stats()
-    
-    # Update error codes
-    error_codes = stats['error_codes']
-    error_codes[str(error_code)] = error_codes.get(str(error_code), 0) + 1
-    redis_client.set(config.REDIS_ERROR_CODES_KEY, dumps(error_codes))
-    
-    # Update connection types
-    connection_types = stats['connection_types']
-    connection_types[data['connectionType']] = connection_types.get(data['connectionType'], 0) + 1
-    redis_client.set(config.REDIS_CONNECTION_TYPES_KEY, dumps(connection_types))
-    
-    # Update hourly errors
-    hour = datetime.fromisoformat(data['timestamp'].replace('Z', '+00:00')).strftime('%Y-%m-%d %H:00')
-    hourly_errors = stats['hourly_errors']
-    hourly_errors[hour] = hourly_errors.get(hour, 0) + 1
-    redis_client.set(config.REDIS_HOURLY_ERRORS_KEY, dumps(hourly_errors))
+    try:
+        # Get current stats
+        stats = get_stats()
+        
+        # Update error codes
+        error_codes = stats['error_codes']
+        error_codes[str(error_code)] = error_codes.get(str(error_code), 0) + 1
+        redis_client.set(config.REDIS_ERROR_CODES_KEY, dumps(error_codes))
+        
+        # Update connection types
+        connection_types = stats['connection_types']
+        connection_types[data['connectionType']] = connection_types.get(data['connectionType'], 0) + 1
+        redis_client.set(config.REDIS_CONNECTION_TYPES_KEY, dumps(connection_types))
+        
+        # Update hourly errors
+        hour = datetime.fromisoformat(data['timestamp'].replace('Z', '+00:00')).strftime('%Y-%m-%d %H:00')
+        hourly_errors = stats['hourly_errors']
+        hourly_errors[hour] = hourly_errors.get(hour, 0) + 1
+        redis_client.set(config.REDIS_HOURLY_ERRORS_KEY, dumps(hourly_errors))
+    except redis.RedisError as e:
+        logger.error(f"Redis error in update_stats: {str(e)}")
+        raise
 
 @app.route('/')
 def home():
@@ -121,12 +146,20 @@ def webhook_endpoint():
 
 @app.route('/logs')
 def get_logs():
-    logs = loads(redis_client.get(config.REDIS_LOGS_KEY) or '[]')
-    return jsonify(logs)
+    try:
+        logs = loads(redis_client.get(config.REDIS_LOGS_KEY) or '[]')
+        return jsonify(logs)
+    except redis.RedisError as e:
+        logger.error(f"Redis error in get_logs: {str(e)}")
+        return jsonify([])
 
 @app.route('/stats')
 def get_stats_endpoint():
-    return jsonify(get_stats())
+    try:
+        return jsonify(get_stats())
+    except redis.RedisError as e:
+        logger.error(f"Redis error in get_stats_endpoint: {str(e)}")
+        return jsonify({'error_codes': {}, 'connection_types': {}, 'hourly_errors': {}})
 
 @app.route('/config')
 def get_config():
